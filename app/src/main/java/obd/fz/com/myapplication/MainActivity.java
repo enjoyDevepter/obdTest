@@ -262,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             sb = new StringBuilder();
-                            statusTV.setText("开始测试");
+                            statusTV.setText("开始解绑");
                         }
                     });
 
@@ -294,36 +294,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void getBoxID(boolean reset) {
-        byte[] data = new byte[6];
-        data[0] = 0x7e;
-        data[1] = (byte) 0x87;
-        data[2] = 01;
-        data[3] = 01;
-        int cr = data[1] ^ data[2] ^ data[3];
-        data[4] = (byte) cr;
-        data[5] = 0x7e;
-
-        Log.d("APP->OBD " + HexUtils.byte2HexStr(data));
+        byte[] result = new byte[13];
+        result[0] = 0x7e;
+        result[1] = (byte) 0x80;
+        result[2] = 01;
+        byte[] bytes = HexUtils.longToByte(System.currentTimeMillis());
+        result[3] = bytes[0];
+        int cr = result[1] ^ result[2] ^ result[3];
+        for (int i = 1; i < bytes.length; i++) {
+            result[3 + i] = bytes[i];
+            cr = cr ^ bytes[i];
+        }
+        result[11] = (byte) cr;
+        result[12] = 0x7e;
+        Log.d("APP->OBD " + HexUtils.byte2HexStr(result));
         if (mBluetoothGatt == null) {
             return;
         }
         timeOutThread.startCommand(reset);
-        writeCharacteristic.setValue(data);
+        writeCharacteristic.setValue(result);
         mBluetoothGatt.writeCharacteristic(writeCharacteristic);
     }
 
-    /**
-     * 接受数据
-     *
-     * @param data
-     */
-    synchronized void analyzeProtocol(byte[] data) {
-
+    public synchronized void analyzeProtocol(byte[] data) {
+        Log.d(" analyzeProtocol");
         if (null != data && data.length > 0) {
             if (data[0] == 0x7e && data.length != 1 && unfinish && data.length >= 7) {
                 // 获取包长度
                 byte[] len = new byte[]{data[4], data[3]};
-                count = HexUtils.byteToShort(len);
+                count = byteToShort(len);
                 if (data.length == count + 7) {  //为完整一包
                     full = new byte[count + 5];
                     System.arraycopy(data, 1, full, 0, full.length);
@@ -334,6 +333,10 @@ public class MainActivity extends AppCompatActivity {
                     currentIndex = data.length - 1;
                     System.arraycopy(data, 1, full, 0, data.length - 1);
                 } else if (data.length > count + 7) {
+                    Log.d(" analyzeProtocol error one ");
+                    currentIndex = 0;
+                    unfinish = true;
+                    full = new byte[]{};
                     return;
                 }
             } else {
@@ -346,6 +349,10 @@ public class MainActivity extends AppCompatActivity {
                     System.arraycopy(data, 0, full, currentIndex, data.length);
                     currentIndex += data.length;
                 } else {
+                    Log.d(" analyzeProtocol error two ");
+                    currentIndex = 0;
+                    unfinish = true;
+                    full = new byte[]{};
                     return;
                 }
             }
@@ -368,46 +375,26 @@ public class MainActivity extends AppCompatActivity {
             byte[] content = new byte[result.length - 1];
             System.arraycopy(result, 0, content, 0, content.length); // 去掉校验码
             Log.d("content  " + HexUtils.formatHexString(content));
-            if (content[0] == 07) {
+            if (content[0] == 00) {
                 if (content[1] == 01) {
-                    switch (content[4]) {
-                        case 00:
-                            int v = byteToShort(new byte[]{content[17], content[18]}) & 0xFFFF;
-                            boolean a = false, b = false;
-                            if (v < 11500 || v > 12500) {
-                                sb.append("电压异常！").append("\n");
-                            } else {
-                                a = true;
-                            }
-                            int s = byteToShort(new byte[]{content[19], content[20]}) & 0xFFFF;
-                            if (s < 1 || s > 4095) {
-                                sb.append("传感器异常！").append("\n");
-                            } else {
-                                b = true;
-                            }
-                            if (a && b) {
-                                updateBoxID(HexUtils.formatHexString(Arrays.copyOfRange(content, 5, 17)));
-                            }
 
-                            break;
-                        case 01: // CAN 通信故障
-                            Log.d("CAN 通信故障");
-                            sb.append("CAN 通信故障,请插拔或者更换设备后继续测试")
-                                    .append("\n");
-                            break;
-                        case 02: // K 线通信故障
-                            Log.d("K 线通信故障");
-                            sb.append("K 线通信故障,请插拔或者更换设备后继续测试")
-                                    .append("\n");
-                            break;
+                    if (content[4] == 00) { // 未注册
+                        mMainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                statusTV.setText("该盒子未注册!");
+                            }
+                        });
+                    } else {
+                        mMainHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                statusTV.setText("正在解绑盒子");
+                            }
+                        });
+
                     }
-
-                    mMainHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            statusTV.setText(sb.toString());
-                        }
-                    });
+                    upbindBoxID(HexUtils.formatHexString(Arrays.copyOfRange(content, 12, 24)));
                 } else {
                     mMainHandler.post(new Runnable() {
                         @Override
@@ -420,7 +407,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateBoxID(String boxId) {
+    private void upbindBoxID(String boxId) {
 
         JSONObject jsonObject = new JSONObject();
         try {
@@ -434,7 +421,7 @@ public class MainActivity extends AppCompatActivity {
         RequestBody requestBody = new FormBody.Builder()
                 .add("params", GlobalUtil.encrypt(jsonObject.toString())).build();
         Request request = new Request.Builder()
-                .url("http://47.92.101.179:8020/service/box/add")
+                .url("http://47.92.101.179:8020/service/box/reset")
                 .addHeader("content-type", "application/json;charset:utf-8")
                 .post(requestBody)
                 .build();
@@ -461,14 +448,14 @@ public class MainActivity extends AppCompatActivity {
                         mMainHandler.post(new Runnable() {
                             @Override
                             public void run() {
-                                statusTV.setText("恭喜！测试通过，\n 继续测试请更换OBD，程序将自动开始测试");
+                                statusTV.setText("恭喜！解绑成功，\n 继续解绑请更换OBD，程序将自动开始解绑");
                             }
                         });
                     } else {
                         mMainHandler.post(new Runnable() {
                             @Override
                             public void run() {
-                                statusTV.setText(result.optString("message") + "，\n 继续测试请更换OBD，程序将自动开始测试");
+                                statusTV.setText(result.optString("message") + "，\n 继续解绑请更换OBD，程序将自动开始解绑");
                             }
                         });
                     }
