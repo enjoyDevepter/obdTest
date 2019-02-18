@@ -56,7 +56,6 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothManager bluetoothManager;
     private TextView statusTV;
     private OkHttpClient okHttpClient;
-    private TimeOutThread timeOutThread;
     private List<String> scanResult = new ArrayList<>();
     private boolean isScaning = false;
     private byte[] result;
@@ -139,9 +138,6 @@ public class MainActivity extends AppCompatActivity {
                 .writeTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .build();
-
-        timeOutThread = new TimeOutThread();
-        timeOutThread.start();
     }
 
     private boolean checkGPSIsOpen() {
@@ -311,7 +307,6 @@ public class MainActivity extends AppCompatActivity {
         if (mBluetoothGatt == null) {
             return;
         }
-        timeOutThread.startCommand(reset);
         writeCharacteristic.setValue(result);
         mBluetoothGatt.writeCharacteristic(writeCharacteristic);
     }
@@ -360,7 +355,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void validateAndNotify(byte[] res) {
-        timeOutThread.endCommand();
         byte[] result = new byte[res.length];
         System.arraycopy(res, 0, result, 0, res.length);
 
@@ -516,99 +510,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         leScanCallback = null;
-        timeOutThread.cancel();
-        timeOutThread = null;
         disconnect(false);
     }
 
-
-    private class TimeOutThread extends Thread {
-
-        private static final String TIMEOUTSYNC = "MTIMEOUTSYNC";
-
-        private boolean needStop = false;
-
-        private boolean waitForCommand = false;
-
-        private boolean needRewire = false;
-
-        private volatile int retryNum = 1;
-
-        @Override
-        public synchronized void start() {
-            needStop = false;
-            super.start();
-        }
-
-        @Override
-        public void run() {
-            super.run();
-            while (!needStop) {
-                synchronized (TIMEOUTSYNC) {
-                    if (needStop) {
-                        return;
-                    }
-                    if (waitForCommand) {
-                        try {
-                            Log.d("TimeOutThread wait ");
-                            TIMEOUTSYNC.wait(COMMAND_TIMEOUT);
-                            if (needRewire) {
-                                Log.d("TimeOutThread needRewire ");
-                                retryNum++;
-                                if (retryNum > 2) {
-                                    mMainHandler.post(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            statusTV.setText("响应超时,请插拔或者更换设备后继续测试");
-                                        }
-                                    });
-                                } else {
-                                    getBoxID(false);
-                                }
-                            }
-                            Log.d("TimeOutThread notifyAll ");
-                            TIMEOUTSYNC.notifyAll();
-//                            TIMEOUTSYNC.wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-
-                    }
-                }
-            }
-        }
-
-        public void startCommand(boolean reset) {
-            synchronized (TIMEOUTSYNC) {
-                Log.d("TimeOutThread startCommand ");
-                waitForCommand = true;
-                if (reset) {
-                    retryNum = 1;
-                    needRewire = true;
-                }
-                TIMEOUTSYNC.notifyAll();
-            }
-        }
-
-        public void endCommand() {
-            synchronized (TIMEOUTSYNC) {
-                Log.d("TimeOutThread endCommand ");
-                waitForCommand = false;
-                needRewire = false;
-                retryNum = 1;
-                TIMEOUTSYNC.notifyAll();
-//                try {
-//                    TIMEOUTSYNC.wait();
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-            }
-        }
-
-        public void cancel() {
-            Log.d("TimeOutThread cancel ");
-            needStop = true;
-            interrupt();
-        }
-    }
 }
