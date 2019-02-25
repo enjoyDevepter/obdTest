@@ -101,11 +101,11 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    public static short byteToShort(byte[] b) {
+    public short byteToShort(byte[] b) {
         short s = 0;
-        short s0 = (short) (b[0] & 0xff);// 最高位
+        short s0 = (short) (b[0] & 0xff);// 最低位
         short s1 = (short) (b[1] & 0xff);
-        s0 <<= 8;
+        s1 <<= 8;
         s = (short) (s0 | s1);
         return s;
     }
@@ -311,6 +311,28 @@ public class MainActivity extends AppCompatActivity {
         mBluetoothGatt.writeCharacteristic(writeCharacteristic);
     }
 
+
+    private void reset() {
+        byte[] result = new byte[6];
+        result[0] = 0x7e;
+        result[1] = (byte) 0x86;
+        result[2] = 01;
+        result[3] = 0;
+        result[4] = (byte) (result[1] ^ result[2] ^ result[3]);
+        result[5] = 0x7e;
+        Log.d("APP->OBD " + HexUtils.byte2HexStr(result));
+        if (mBluetoothGatt == null) {
+            return;
+        }
+        writeCharacteristic.setValue(result);
+        mBluetoothGatt.writeCharacteristic(writeCharacteristic);
+    }
+
+    /**
+     * 接受数据
+     *
+     * @param data
+     */
     public synchronized void analyzeProtocol(byte[] data) {
         Log.d(" analyzeProtocol");
         if (null != data && data.length > 0) {
@@ -354,6 +376,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
     private void validateAndNotify(byte[] res) {
         byte[] result = new byte[res.length];
         System.arraycopy(res, 0, result, 0, res.length);
@@ -365,30 +388,28 @@ public class MainActivity extends AppCompatActivity {
         if (cr != result[result.length - 1]) {
             result = null;
         } else {
-            sb = new StringBuilder();
             byte[] content = new byte[result.length - 1];
             System.arraycopy(result, 0, content, 0, content.length); // 去掉校验码
             Log.d("content  " + HexUtils.formatHexString(content));
             if (content[0] == 00) {
                 if (content[1] == 01) {
 
-                    if (content[4] == 00) { // 未注册
-                        mMainHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                statusTV.setText("该盒子未注册!");
-                            }
-                        });
-                    } else {
-                        mMainHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                statusTV.setText("正在解绑盒子");
-                            }
-                        });
-
-                    }
-                    upbindBoxID(HexUtils.formatHexString(Arrays.copyOfRange(content, 12, 24)));
+//                    if (content[4] == 00) { // 未注册
+//                        mMainHandler.post(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                statusTV.setText("该盒子未注册!");
+//                            }
+//                        });
+//                    } else {
+                    mMainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            statusTV.setText("正在解绑盒子");
+                        }
+                    });
+                    upbindBoxID(HexUtils.formatHexString(Arrays.copyOfRange(content, 12, 24)), new String(Arrays.copyOfRange(content, 24, 43)));
+//                    }
                 } else {
                     mMainHandler.post(new Runnable() {
                         @Override
@@ -397,32 +418,42 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                 }
+            } else if (content[0] == 06) {
+                if (content[1] == 01) {
+                    mMainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            statusTV.setText("恭喜！解绑成功，\n 继续解绑请更换OBD，程序将自动开始解绑");
+                        }
+                    });
+                }
             }
         }
     }
 
-    private void upbindBoxID(String boxId) {
+    private void upbindBoxID(String boxId, String sn) {
 
         JSONObject jsonObject = new JSONObject();
         try {
+            jsonObject.put("serialNumber", sn);
             jsonObject.put("boxId", boxId);
         } catch (JSONException e) {
             e.printStackTrace();
         }
 
-        Log.d("updateBoxID input " + jsonObject.toString());
+        Log.d("upbindBoxID input " + jsonObject.toString());
 
         RequestBody requestBody = new FormBody.Builder()
                 .add("params", GlobalUtil.encrypt(jsonObject.toString())).build();
         Request request = new Request.Builder()
-                .url("http://47.92.101.179:8020/service/box/reset")
+                .url("http://tpms.1668288.com/service/box/clear")
                 .addHeader("content-type", "application/json;charset:utf-8")
                 .post(requestBody)
                 .build();
         okHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                Log.d("updateBoxID failure " + e.getMessage());
+                Log.d("upbindBoxID failure " + e.getMessage());
                 mMainHandler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -435,16 +466,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responese = response.body().string();
-                Log.d("updateBoxID success " + responese);
+                Log.d("upbindBoxID success " + responese);
                 try {
                     final JSONObject result = new JSONObject(responese);
                     if ("000".equals(result.optString("status"))) {
-                        mMainHandler.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                statusTV.setText("恭喜！解绑成功，\n 继续解绑请更换OBD，程序将自动开始解绑");
-                            }
-                        });
+                        reset();
                     } else {
                         mMainHandler.post(new Runnable() {
                             @Override
