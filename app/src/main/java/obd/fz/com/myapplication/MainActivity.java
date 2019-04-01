@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String NOTIFY_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
     private static final int REQUEST_CODE_OPEN_GPS = 1;
     private static final int REQUEST_CODE_PERMISSION_LOCATION = 2;
-    private static final long COMMAND_TIMEOUT = 5000;
+    private static final long COMMAND_TIMEOUT = 15000;
     StringBuilder sb = new StringBuilder();
     private BluetoothGattCharacteristic writeCharacteristic;
     private BluetoothGattCharacteristic readCharacteristic;
@@ -117,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         statusTV = (TextView) findViewById(R.id.status);
 
+        GlobalUtil.setContext(this);
         if (isSupportBle()) {
             bluetoothManager = (BluetoothManager) this.getSystemService(Context.BLUETOOTH_SERVICE);
         }
@@ -375,12 +376,14 @@ public class MainActivity extends AppCompatActivity {
                             int v = byteToShort(new byte[]{content[17], content[18]}) & 0xFFFF;
                             boolean a = false, b = false;
                             if (v < 11500 || v > 12500) {
+                                AlarmManager.getInstance().play(R.raw.warm);
                                 sb.append("电压异常！").append("\n");
                             } else {
                                 a = true;
                             }
                             int s = byteToShort(new byte[]{content[19], content[20]}) & 0xFFFF;
                             if (s < 1 || s > 4095) {
+                                AlarmManager.getInstance().play(R.raw.warm);
                                 sb.append("传感器异常！").append("\n");
                             } else {
                                 b = true;
@@ -391,11 +394,13 @@ public class MainActivity extends AppCompatActivity {
 
                             break;
                         case 01: // CAN 通信故障
+                            AlarmManager.getInstance().play(R.raw.warm);
                             Log.d("CAN 通信故障");
                             sb.append("CAN 通信故障,请插拔或者更换设备后继续测试")
                                     .append("\n");
                             break;
                         case 02: // K 线通信故障
+                            AlarmManager.getInstance().play(R.raw.warm);
                             Log.d("K 线通信故障");
                             sb.append("K 线通信故障,请插拔或者更换设备后继续测试")
                                     .append("\n");
@@ -409,6 +414,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                 } else {
+                    AlarmManager.getInstance().play(R.raw.warm);
                     mMainHandler.post(new Runnable() {
                         @Override
                         public void run() {
@@ -461,6 +467,7 @@ public class MainActivity extends AppCompatActivity {
                         mMainHandler.post(new Runnable() {
                             @Override
                             public void run() {
+                                AlarmManager.getInstance().play(R.raw.box);
                                 statusTV.setText("恭喜！测试通过，\n 继续测试请更换OBD，程序将自动开始测试");
                             }
                         });
@@ -473,6 +480,7 @@ public class MainActivity extends AppCompatActivity {
                         });
                     }
                 } catch (JSONException e) {
+                    AlarmManager.getInstance().play(R.raw.warm);
                     mMainHandler.post(new Runnable() {
                         @Override
                         public void run() {
