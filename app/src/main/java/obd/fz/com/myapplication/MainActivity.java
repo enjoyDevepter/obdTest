@@ -316,7 +316,7 @@ public class MainActivity extends AppCompatActivity {
         byte[] result = new byte[6];
         result[0] = 0x7e;
         result[1] = (byte) 0x86;
-        result[2] = 01;
+        result[2] = 0x11;
         result[3] = 0;
         result[4] = (byte) (result[1] ^ result[2] ^ result[3]);
         result[5] = 0x7e;
@@ -392,7 +392,7 @@ public class MainActivity extends AppCompatActivity {
             System.arraycopy(result, 0, content, 0, content.length); // 去掉校验码
             Log.d("content  " + HexUtils.formatHexString(content));
             if (content[0] == 00) {
-                if (content[1] == 01) {
+                if (content[1] == 02) {
 
 //                    if (content[4] == 00) { // 未注册
 //                        mMainHandler.post(new Runnable() {
