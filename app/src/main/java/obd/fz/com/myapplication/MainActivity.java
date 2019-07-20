@@ -419,7 +419,7 @@ public class MainActivity extends AppCompatActivity {
                     });
                 }
             } else if (content[0] == 06) {
-                if (content[1] == 01) {
+                if (content[1] == 0x11) {
                     mMainHandler.post(new Runnable() {
                         @Override
                         public void run() {
