@@ -20,6 +20,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.miyuan.reset.R;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
