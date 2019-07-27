@@ -393,17 +393,8 @@ public class MainActivity extends AppCompatActivity {
             byte[] content = new byte[result.length - 1];
             System.arraycopy(result, 0, content, 0, content.length); // 去掉校验码
             Log.d("content  " + HexUtils.formatHexString(content));
-            if (content[0] == 00) {
-                if (content[1] == 02) {
-
-//                    if (content[4] == 00) { // 未注册
-//                        mMainHandler.post(new Runnable() {
-//                            @Override
-//                            public void run() {
-//                                statusTV.setText("该盒子未注册!");
-//                            }
-//                        });
-//                    } else {
+            if (content[0] == 0x00) {
+                if (content[1] == 0x02 || content[1] == 0x00) {
                     mMainHandler.post(new Runnable() {
                         @Override
                         public void run() {
@@ -411,7 +402,6 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                     upbindBoxID(HexUtils.formatHexString(Arrays.copyOfRange(content, 12, 24)), new String(Arrays.copyOfRange(content, 24, 43)));
-//                    }
                 } else {
                     mMainHandler.post(new Runnable() {
                         @Override
@@ -420,7 +410,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                 }
-            } else if (content[0] == 06) {
+            } else if (content[0] == 0x06) {
                 if (content[1] == 0x11) {
                     mMainHandler.post(new Runnable() {
                         @Override
