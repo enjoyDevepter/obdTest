@@ -8,11 +8,26 @@ android {
         targetSdkVersion 22
         versionCode 1
         versionName "1.0"
+        flavorDimensions "default"
     }
-    buildTypes {
+
+    productFlavors {
+        inside {
+            buildConfigField 'String', "HOST", '"http://47.92.101.179:8020/"'
+        }
+
+        formal {
+            buildConfigField 'String', "HOST", '"http://box.1668288.com/"'
+        }
+    }
+
+    signingConfigs {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            storeFile file("../key/miyuan_android.keystore")
+            storePassword "miyuan2018"
+            keyAlias "miyuan_android"
+            keyPassword "miyuan2018"
+            v2SigningEnabled false
         }
     }
     lintOptions {
@@ -20,6 +35,17 @@ android {
         // Or, if you prefer, you can continue to check for errors in release builds,
         // but continue the build even when errors are found:
         abortOnError false
+    }
+
+    applicationVariants.all { variant ->
+        if (variant.buildType.name != "debug") {
+            variant.getPackageApplicationProvider().get().outputDirectory = new File(project.rootDir.absolutePath + "/release")
+        }
+        variant.getPackageApplicationProvider().get().outputScope.apkDatas.forEach { apkData ->
+            apkData.outputFileName =
+                    variant.flavorName + "_" + "unbind_" +
+                            ".apk"
+        }
     }
 }
 

@@ -20,6 +20,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.miyuan.reset.BuildConfig;
 import com.miyuan.reset.R;
 
 import org.json.JSONException;
@@ -438,7 +439,8 @@ public class MainActivity extends AppCompatActivity {
         RequestBody requestBody = new FormBody.Builder()
                 .add("params", GlobalUtil.encrypt(jsonObject.toString())).build();
         Request request = new Request.Builder()
-                .url("http://tpms.1668288.com/service/box/clear")
+                .url(BuildConfig.HOST + "service/box/clear")
+//                .url("http://tpms.1668288.com/service/box/clear")
                 .addHeader("content-type", "application/json;charset:utf-8")
                 .post(requestBody)
                 .build();
