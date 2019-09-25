@@ -43,7 +43,7 @@ android {
         }
         variant.getPackageApplicationProvider().get().outputScope.apkDatas.forEach { apkData ->
             apkData.outputFileName =
-                    variant.flavorName + "_" + "unbind_" +
+                    variant.flavorName + "_" + "unbind" +
                             ".apk"
         }
     }
