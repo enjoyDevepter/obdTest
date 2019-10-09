@@ -17,7 +17,7 @@ android {
         }
 
         formal {
-            buildConfigField 'String', "HOST", '"http://box.1668288.com/"'
+            buildConfigField 'String', "HOST", '"http://tpms.1668288.com/"'
         }
     }
 
