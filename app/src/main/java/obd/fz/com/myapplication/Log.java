@@ -14,7 +14,7 @@ public class Log {
 
     static {
         Timber.plant(new Timber.DebugTree());
-        Timber.plant(new FileLoggingTree(Environment.getExternalStorageDirectory().getPath() + "/obd_test"));
+        Timber.plant(new FileLoggingTree(Environment.getExternalStorageDirectory().getPath() + "/obd_unbind"));
     }
 
     public static void d(String message) {
