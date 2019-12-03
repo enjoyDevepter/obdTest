@@ -395,7 +395,7 @@ public class MainActivity extends AppCompatActivity {
             System.arraycopy(result, 0, content, 0, content.length); // 去掉校验码
             Log.d("content  " + HexUtils.formatHexString(content));
             if (content[0] == 0x00) {
-                if (content[1] == 0x02 || content[1] == 0x00) {
+                if (content[1] == 0x02 || content[1] == 0x01) {
                     mMainHandler.post(new Runnable() {
                         @Override
                         public void run() {
